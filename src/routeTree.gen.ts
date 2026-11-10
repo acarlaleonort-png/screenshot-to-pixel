@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAccountIndexRouteImport } from './routes/_authenticated/account.index'
+import { Route as AuthenticatedAccountContentRouteImport } from './routes/_authenticated/account.content'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedCheckoutIndexRouteImport } from './routes/_authenticated/checkout.index'
 import { Route as AuthenticatedCheckoutErrorRouteImport } from './routes/_authenticated/checkout.error'
 import { Route as AuthenticatedCheckoutPendingRouteImport } from './routes/_authenticated/checkout.pending'
@@ -31,6 +35,28 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAccountIndexRoute =
+  AuthenticatedAccountIndexRouteImport.update({
+    id: '/account/',
+    path: '/account/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccountContentRoute =
+  AuthenticatedAccountContentRouteImport.update({
+    id: '/account/content',
+    path: '/account/content',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedCheckoutIndexRoute =
   AuthenticatedCheckoutIndexRouteImport.update({
@@ -65,18 +91,25 @@ const ApiPublicVwpayWebhookRoute = ApiPublicVwpayWebhookRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/account/content': typeof AuthenticatedAccountContentRoute
   '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/account/': typeof AuthenticatedAccountIndexRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/account/content': typeof AuthenticatedAccountContentRoute
   '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/account': typeof AuthenticatedAccountIndexRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/checkout': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
@@ -85,9 +118,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/account/content': typeof AuthenticatedAccountContentRoute
   '/_authenticated/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/_authenticated/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/_authenticated/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/_authenticated/account/': typeof AuthenticatedAccountIndexRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
@@ -96,18 +133,25 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/admin'
+    | '/account/content'
     | '/checkout/error'
     | '/checkout/pending'
     | '/checkout/success'
+    | '/account/'
+    | '/admin/'
     | '/checkout/'
     | '/api/public/vwpay/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/account/content'
     | '/checkout/error'
     | '/checkout/pending'
     | '/checkout/success'
+    | '/account'
+    | '/admin'
     | '/checkout'
     | '/api/public/vwpay/webhook'
   id:
@@ -115,9 +159,13 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/admin'
+    | '/_authenticated/account/content'
     | '/_authenticated/checkout/error'
     | '/_authenticated/checkout/pending'
     | '/_authenticated/checkout/success'
+    | '/_authenticated/account/'
+    | '/_authenticated/admin/'
     | '/_authenticated/checkout/'
     | '/api/public/vwpay/webhook'
   fileRoutesById: FileRoutesById
@@ -151,6 +199,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account/': {
+      id: '/_authenticated/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AuthenticatedAccountIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account/content': {
+      id: '/_authenticated/account/content'
+      path: '/account/content'
+      fullPath: '/account/content'
+      preLoaderRoute: typeof AuthenticatedAccountContentRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/checkout/': {
       id: '/_authenticated/checkout/'
@@ -190,17 +266,34 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAccountContentRoute: typeof AuthenticatedAccountContentRoute
   AuthenticatedCheckoutErrorRoute: typeof AuthenticatedCheckoutErrorRoute
   AuthenticatedCheckoutPendingRoute: typeof AuthenticatedCheckoutPendingRoute
   AuthenticatedCheckoutSuccessRoute: typeof AuthenticatedCheckoutSuccessRoute
+  AuthenticatedAccountIndexRoute: typeof AuthenticatedAccountIndexRoute
   AuthenticatedCheckoutIndexRoute: typeof AuthenticatedCheckoutIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAccountContentRoute: AuthenticatedAccountContentRoute,
   AuthenticatedCheckoutErrorRoute: AuthenticatedCheckoutErrorRoute,
   AuthenticatedCheckoutPendingRoute: AuthenticatedCheckoutPendingRoute,
   AuthenticatedCheckoutSuccessRoute: AuthenticatedCheckoutSuccessRoute,
+  AuthenticatedAccountIndexRoute: AuthenticatedAccountIndexRoute,
   AuthenticatedCheckoutIndexRoute: AuthenticatedCheckoutIndexRoute,
 }
 
