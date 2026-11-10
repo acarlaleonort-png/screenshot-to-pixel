@@ -10,6 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedCheckoutIndexRouteImport } from './routes/_authenticated/checkout.index'
+import { Route as AuthenticatedCheckoutErrorRouteImport } from './routes/_authenticated/checkout.error'
+import { Route as AuthenticatedCheckoutPendingRouteImport } from './routes/_authenticated/checkout.pending'
+import { Route as AuthenticatedCheckoutSuccessRouteImport } from './routes/_authenticated/checkout.success'
 import { Route as ApiPublicVwpayWebhookRouteImport } from './routes/api/public/vwpay/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -17,6 +23,39 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedCheckoutIndexRoute =
+  AuthenticatedCheckoutIndexRouteImport.update({
+    id: '/checkout/',
+    path: '/checkout/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCheckoutErrorRoute =
+  AuthenticatedCheckoutErrorRouteImport.update({
+    id: '/checkout/error',
+    path: '/checkout/error',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCheckoutPendingRoute =
+  AuthenticatedCheckoutPendingRouteImport.update({
+    id: '/checkout/pending',
+    path: '/checkout/pending',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCheckoutSuccessRoute =
+  AuthenticatedCheckoutSuccessRouteImport.update({
+    id: '/checkout/success',
+    path: '/checkout/success',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicVwpayWebhookRoute = ApiPublicVwpayWebhookRouteImport.update({
   id: '/api/public/vwpay/webhook',
   path: '/api/public/vwpay/webhook',
@@ -25,27 +64,68 @@ const ApiPublicVwpayWebhookRoute = ApiPublicVwpayWebhookRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
+  '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
+  '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
+  '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
+  '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/checkout': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/checkout/error': typeof AuthenticatedCheckoutErrorRoute
+  '/_authenticated/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
+  '/_authenticated/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
+  '/_authenticated/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/vwpay/webhook': typeof ApiPublicVwpayWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/vwpay/webhook'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/checkout/error'
+    | '/checkout/pending'
+    | '/checkout/success'
+    | '/checkout/'
+    | '/api/public/vwpay/webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/vwpay/webhook'
-  id: '__root__' | '/' | '/api/public/vwpay/webhook'
+  to:
+    | '/'
+    | '/login'
+    | '/checkout/error'
+    | '/checkout/pending'
+    | '/checkout/success'
+    | '/checkout'
+    | '/api/public/vwpay/webhook'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/checkout/error'
+    | '/_authenticated/checkout/pending'
+    | '/_authenticated/checkout/success'
+    | '/_authenticated/checkout/'
+    | '/api/public/vwpay/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  LoginRoute: typeof LoginRoute
   ApiPublicVwpayWebhookRoute: typeof ApiPublicVwpayWebhookRoute
 }
 
@@ -58,6 +138,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/checkout/': {
+      id: '/_authenticated/checkout/'
+      path: '/checkout'
+      fullPath: '/checkout/'
+      preLoaderRoute: typeof AuthenticatedCheckoutIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/checkout/error': {
+      id: '/_authenticated/checkout/error'
+      path: '/checkout/error'
+      fullPath: '/checkout/error'
+      preLoaderRoute: typeof AuthenticatedCheckoutErrorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/checkout/pending': {
+      id: '/_authenticated/checkout/pending'
+      path: '/checkout/pending'
+      fullPath: '/checkout/pending'
+      preLoaderRoute: typeof AuthenticatedCheckoutPendingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/checkout/success': {
+      id: '/_authenticated/checkout/success'
+      path: '/checkout/success'
+      fullPath: '/checkout/success'
+      preLoaderRoute: typeof AuthenticatedCheckoutSuccessRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/vwpay/webhook': {
       id: '/api/public/vwpay/webhook'
       path: '/api/public/vwpay/webhook'
@@ -68,8 +190,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCheckoutErrorRoute: typeof AuthenticatedCheckoutErrorRoute
+  AuthenticatedCheckoutPendingRoute: typeof AuthenticatedCheckoutPendingRoute
+  AuthenticatedCheckoutSuccessRoute: typeof AuthenticatedCheckoutSuccessRoute
+  AuthenticatedCheckoutIndexRoute: typeof AuthenticatedCheckoutIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCheckoutErrorRoute: AuthenticatedCheckoutErrorRoute,
+  AuthenticatedCheckoutPendingRoute: AuthenticatedCheckoutPendingRoute,
+  AuthenticatedCheckoutSuccessRoute: AuthenticatedCheckoutSuccessRoute,
+  AuthenticatedCheckoutIndexRoute: AuthenticatedCheckoutIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  LoginRoute: LoginRoute,
   ApiPublicVwpayWebhookRoute: ApiPublicVwpayWebhookRoute,
 }
 export const routeTree = rootRouteImport
