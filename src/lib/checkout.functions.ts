@@ -60,11 +60,11 @@ export const createCheckout = createServerFn({ method: "POST" })
         method: data.method,
         amount: plan.price,
         transaction_id: tx.transactionId,
-        pix_qr_code: tx.pixQrCode,
-        pix_copy_paste: tx.pixCopyPaste,
-        boleto_line: tx.boletoLine,
-        boleto_url: tx.boletoUrl,
-        expires_at: tx.expiresAt,
+        pix_qr_code: tx.pixQrCode ?? null,
+        pix_copy_paste: tx.pixCopyPaste ?? null,
+        boleto_line: tx.boletoLine ?? null,
+        boleto_url: tx.boletoUrl ?? null,
+        expires_at: tx.expiresAt ?? null,
         raw_reference_data: tx.raw as never,
       });
       // Only DECLINED is applied from the synchronous response; approval waits for backend confirmation.

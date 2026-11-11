@@ -78,11 +78,11 @@ async function request(path: string, init: RequestInit = {}) {
     console.error("[VWPay] request failed", path, res.status);
     throw new Error(`VW Pay respondeu com erro (${res.status}).`);
   }
-  return body as Record<string, any>;
+  return body as any;
 }
 
-function normalize(body: Record<string, any>): TransactionResult {
-  const d = (body?.data ?? body) as Record<string, any>;
+function normalize(body: any): TransactionResult {
+  const d = (body?.data ?? body) as any;
   return {
     transactionId: String(d.id ?? d.transaction_id ?? d.transactionId),
     status: mapStatus(d.status),

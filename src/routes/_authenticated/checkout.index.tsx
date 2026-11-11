@@ -12,7 +12,7 @@ import { formatBRL, PERIOD_LABEL, type BillingPeriod } from "@/lib/format";
 import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/checkout/")({
-  validateSearch: (s: Record<string, unknown>) => ({ plan: typeof s.plan === "string" ? s.plan : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ plan: typeof s["plan"] === "string" ? s["plan"] : undefined }),
   head: () => ({
     meta: [
       { title: "Finalizar compra" },
@@ -62,7 +62,7 @@ function Checkout() {
     }
     if (!selected && data?.plans[0]) setSelected(data.plans[0].id);
   }, [data, selected]);
-  useEffect(() => track("checkout_started", { plan_id: planId }), [planId]);
+  useEffect(() => track("checkout_started", planId ? { plan_id: planId } : {}), [planId]);
 
   if (isLoading) return <div className="p-10 text-center text-muted-foreground">Carregando...</div>;
   const plan = data?.plans.find((p) => p.id === selected);
@@ -114,7 +114,7 @@ function Checkout() {
             <div className="space-y-1.5"><Label>E-mail</Label><Input value={user.email ?? ""} disabled className="h-12" /></div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label htmlFor="p">Celular</Label><Input id="p" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-12" /></div>
-              <div className="space-y-1.5"><Label htmlFor="d">CPF</Label><Input id="d" inputMode="numeric" required={method !== "pix" || true} value={doc} onChange={(e) => setDoc(e.target.value.replace(/\D/g, "").slice(0, 14))} className="h-12" /></div>
+              <div className="space-y-1.5"><Label htmlFor="d">CPF</Label><Input id="d" inputMode="numeric" required value={doc} onChange={(e) => setDoc(e.target.value.replace(/\D/g, "").slice(0, 14))} className="h-12" /></div>
             </div>
           </section>
           <section>

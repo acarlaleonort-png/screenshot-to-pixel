@@ -12,13 +12,13 @@ export const Route = createFileRoute("/api/public/vwpay/webhook")({
           request.headers.get("x-vwpay-signature") ?? request.headers.get("x-signature") ?? request.headers.get("signature");
         const valid = await VWPayService.verifyWebhookSignature(raw, signature);
 
-        let payload: Record<string, any>;
+        let payload: any;
         try {
           payload = JSON.parse(raw);
         } catch {
           return new Response("invalid body", { status: 400 });
         }
-        const d = (payload.data ?? payload) as Record<string, any>;
+        const d = (payload.data ?? payload) as any;
         const transactionId = String(d.id ?? d.transaction_id ?? d.transactionId ?? "");
         const eventType = String(payload.event ?? payload.type ?? "transaction.updated");
         const eventId = String(payload.event_id ?? payload.id ?? `${transactionId}:${d.status}`);

@@ -9,7 +9,7 @@ import { formatBRL } from "@/lib/format";
 import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/checkout/pending")({
-  validateSearch: (s: Record<string, unknown>) => ({ order: typeof s.order === "string" ? s.order : "" }),
+  validateSearch: (s: Record<string, unknown>) => ({ order: typeof s["order"] === "string" ? s["order"] : "" }),
   head: () => ({ meta: [{ title: "Aguardando pagamento" }, { name: "robots", content: "noindex" }] }),
   component: Pending,
 });

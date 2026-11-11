@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { STATUS_LABEL, type PaymentStatus } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/checkout/error")({
-  validateSearch: (s: Record<string, unknown>) => ({ status: typeof s.status === "string" ? s.status : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ status: typeof s["status"] === "string" ? s["status"] : undefined }),
   head: () => ({ meta: [{ title: "Pagamento não concluído" }, { name: "robots", content: "noindex" }] }),
   component: ErrorPage,
 });

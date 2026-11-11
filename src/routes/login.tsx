@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 const safe = (r: unknown) => (typeof r === "string" && r.startsWith("/") && !r.startsWith("//") ? r : "/account");
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s.redirect === "string" ? s.redirect : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined }),
   head: () => ({
     meta: [
       { title: "Entrar — Acesso exclusivo" },
@@ -40,7 +40,7 @@ function Login() {
     if (mode === "in") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setBusy(false);
-      if (error) return toast.error("E-mail ou senha inválidos.");
+      if (error) { toast.error("E-mail ou senha inválidos."); return; }
       navigate({ href: target, replace: true });
     } else {
       const { error } = await supabase.auth.signUp({
@@ -49,7 +49,7 @@ function Login() {
         options: { emailRedirectTo: window.location.origin + target, data: { full_name: name } },
       });
       setBusy(false);
-      if (error) return toast.error(error.message);
+      if (error) { toast.error(error.message); return; }
       setSent(true);
     }
   };
