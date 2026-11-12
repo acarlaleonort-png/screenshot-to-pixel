@@ -16,10 +16,12 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAccountIndexRouteImport } from './routes/_authenticated/account.index'
 import { Route as AuthenticatedAccountContentRouteImport } from './routes/_authenticated/account.content'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminContentRouteImport } from './routes/_authenticated/admin.content'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin.customers'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin.orders'
 import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedCheckoutIndexRouteImport } from './routes/_authenticated/checkout.index'
 import { Route as AuthenticatedCheckoutErrorRouteImport } from './routes/_authenticated/checkout.error'
 import { Route as AuthenticatedCheckoutPendingRouteImport } from './routes/_authenticated/checkout.pending'
@@ -62,6 +64,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminContentRoute =
+  AuthenticatedAdminContentRouteImport.update({
+    id: '/content',
+    path: '/content',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminCustomersRoute =
   AuthenticatedAdminCustomersRouteImport.update({
     id: '/customers',
@@ -85,6 +93,12 @@ const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedCheckoutIndexRoute =
   AuthenticatedCheckoutIndexRouteImport.update({
     id: '/checkout/',
@@ -120,10 +134,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/account/content': typeof AuthenticatedAccountContentRoute
+  '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
@@ -136,10 +152,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/account/content': typeof AuthenticatedAccountContentRoute
+  '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
@@ -155,10 +173,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/account/content': typeof AuthenticatedAccountContentRoute
+  '/_authenticated/admin/content': typeof AuthenticatedAdminContentRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/checkout/error': typeof AuthenticatedCheckoutErrorRoute
   '/_authenticated/checkout/pending': typeof AuthenticatedCheckoutPendingRoute
   '/_authenticated/checkout/success': typeof AuthenticatedCheckoutSuccessRoute
@@ -174,10 +194,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/account/content'
+    | '/admin/content'
     | '/admin/customers'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/plans'
+    | '/admin/settings'
     | '/checkout/error'
     | '/checkout/pending'
     | '/checkout/success'
@@ -190,10 +212,12 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/account/content'
+    | '/admin/content'
     | '/admin/customers'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/plans'
+    | '/admin/settings'
     | '/checkout/error'
     | '/checkout/pending'
     | '/checkout/success'
@@ -208,10 +232,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/admin'
     | '/_authenticated/account/content'
+    | '/_authenticated/admin/content'
     | '/_authenticated/admin/customers'
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/payments'
     | '/_authenticated/admin/plans'
+    | '/_authenticated/admin/settings'
     | '/_authenticated/checkout/error'
     | '/_authenticated/checkout/pending'
     | '/_authenticated/checkout/success'
@@ -279,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/content': {
+      id: '/_authenticated/admin/content'
+      path: '/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AuthenticatedAdminContentRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/customers': {
       id: '/_authenticated/admin/customers'
       path: '/customers'
@@ -305,6 +338,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/admin/plans'
       preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/checkout/': {
@@ -346,18 +386,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminContentRoute: typeof AuthenticatedAdminContentRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminContentRoute: AuthenticatedAdminContentRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
   AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
