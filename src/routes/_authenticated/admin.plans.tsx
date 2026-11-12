@@ -37,7 +37,7 @@ function PlansPage() {
   async function save() {
     if (!form) return;
     const price = Number(form.price.replace(",", "."));
-    if (!form.name.trim() || !(price > 0)) return toast.error("Informe nome e um preço válido.");
+    if (!form.name.trim() || !(price > 0)) { toast.error("Informe nome e um preço válido."); return; }
     const row = {
       name: form.name.trim(), description: form.description, price, billing_period: form.billing_period,
       duration_days: Number(form.duration_days) || DAYS[form.billing_period],
@@ -47,11 +47,11 @@ function PlansPage() {
     const { error } = form.id
       ? await supabase.from("plans").update(row).eq("id", form.id)
       : await supabase.from("plans").insert({ ...row, slug: `${slugify(row.name)}-${Date.now().toString(36)}`, sort_order: plans.length });
-    if (error) return toast.error("Não foi possível salvar: " + error.message);
+    if (error) { toast.error("Não foi possível salvar: " + error.message); return; }
     toast.success("Plano salvo"); setForm(null); refresh();
   }
 
-  async function patch(id: string, values: Record<string, unknown>) {
+  async function patch(id: string, values: { highlighted?: boolean; active?: boolean }) {
     const { error } = await supabase.from("plans").update(values).eq("id", id);
     if (error) toast.error(error.message); else refresh();
   }
@@ -65,7 +65,7 @@ function PlansPage() {
 
   async function remove(id: string) {
     const { count } = await supabase.from("orders").select("id", { count: "exact", head: true }).eq("plan_id", id);
-    if (count) return toast.error("Este plano já tem pedidos. Desative-o em vez de excluir.");
+    if (count) { toast.error("Este plano já tem pedidos. Desative-o em vez de excluir."); return; }
     if (!confirm("Excluir este plano definitivamente?")) return;
     const { error } = await supabase.from("plans").delete().eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Plano excluído"); refresh(); }
