@@ -137,3 +137,6 @@
 @utility bg-gradient-gold { background-image: var(--gradient-gold); }
 @utility shadow-elegant { box-shadow: var(--shadow-elegant); }
 @utility bg-fade { background-image: var(--gradient-fade); }
+
+@keyframes cta-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); } 50% { box-shadow: 0 0 0 8px transparent; } }
+@utility cta-pulse { animation: cta-pulse 2.4s ease-in-out infinite; }

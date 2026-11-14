@@ -32,7 +32,7 @@ function Account() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/login", search: { redirect: undefined }, replace: true });
+    navigate({ to: "/login", search: { redirect: undefined, mode: undefined }, replace: true });
   };
 
   return (

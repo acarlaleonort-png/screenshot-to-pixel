@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 const safe = (r: unknown) => (typeof r === "string" && r.startsWith("/") && !r.startsWith("//") ? r : "/account");
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined,
+    mode: s["mode"] === "signup" ? ("signup" as const) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Entrar — Acesso exclusivo" },
@@ -24,9 +27,9 @@ export const Route = createFileRoute("/login")({
 });
 
 function Login() {
-  const { redirect } = Route.useSearch();
+  const { redirect, mode: initialMode } = Route.useSearch();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">(initialMode === "signup" ? "up" : "in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

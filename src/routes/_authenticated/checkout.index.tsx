@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { createCheckout } from "@/lib/checkout.functions";
 import { formatBRL, PERIOD_LABEL, type BillingPeriod } from "@/lib/format";
 import { track } from "@/lib/analytics";
+import { Checkbox } from "@/components/ui/checkbox";
+import { isValidCNPJ, isValidCPF, isValidExpiry, isValidLuhn, isValidPhone, maskCardNumber, maskCNPJ, maskCPF, maskCVV, maskExpiry, maskPhone } from "@/lib/masks";
 
 export const Route = createFileRoute("/_authenticated/checkout/")({
   validateSearch: (s: Record<string, unknown>) => ({ plan: typeof s["plan"] === "string" ? s["plan"] : undefined }),
@@ -53,12 +55,21 @@ function Checkout() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [doc, setDoc] = useState("");
+  const [docType, setDocType] = useState<"CPF" | "CNPJ">("CPF");
+  const [cardNumber, setCardNumber] = useState("");
+  const [holder, setHolder] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [installments, setInstallments] = useState(1);
+  const [adult, setAdult] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (data?.profile) {
       setName((n) => n || data.profile?.full_name || "");
-      setPhone((p) => p || data.profile?.phone || "");
+      setPhone((p) => p || maskPhone(data.profile?.phone || ""));
     }
     if (!selected && data?.plans[0]) setSelected(data.plans[0].id);
   }, [data, selected]);
@@ -67,13 +78,35 @@ function Checkout() {
   if (isLoading) return <div className="p-10 text-center text-muted-foreground">Carregando...</div>;
   const plan = data?.plans.find((p) => p.id === selected);
   const methods = METHODS.filter((m) => data?.methods[m.id]);
+  const activeMethod = methods.some((m) => m.id === method) ? method : methods[0]?.id ?? method;
+  const errors = {
+    name: name.trim().length < 2 ? "Informe seu nome completo" : "",
+    phone: !isValidPhone(phone) ? "Celular inválido. Ex.: (11) 98765-4321" : "",
+    doc: !(docType === "CPF" ? isValidCPF(doc) : isValidCNPJ(doc)) ? `${docType} inválido` : "",
+    cardNumber: activeMethod === "card" && !isValidLuhn(cardNumber) ? "Número do cartão inválido" : "",
+    holder: activeMethod === "card" && holder.trim().length < 3 ? "Nome como está no cartão" : "",
+    expiry: activeMethod === "card" && !isValidExpiry(expiry) ? "Validade inválida" : "",
+    cvv: activeMethod === "card" && !/^\d{3,4}$/.test(cvv) ? "CVV inválido" : "",
+    adult: !adult ? "Confirme que você é maior de 18 anos" : "",
+  };
+  const show = (k: keyof typeof errors) => (touched[k] || touched["all"]) && errors[k];
 
   const pay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!plan) return;
+    if (Object.values(errors).some(Boolean)) {
+      setTouched({ all: true });
+      toast.error("Confira os campos destacados.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await createCheckout({ data: { planId: plan.id, name, phone, document: doc, method } });
+      const res = await createCheckout({
+        data: {
+          planId: plan.id, name, phone, document: doc, documentType: docType, method: activeMethod, adult: true,
+          card: activeMethod === "card" ? { number: cardNumber, holderName: holder, expiry, cvv, installments } : undefined,
+        },
+      });
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -110,12 +143,34 @@ function Checkout() {
           </section>
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">2. Seus dados</h2>
-            <div className="space-y-1.5"><Label htmlFor="n">Nome completo</Label><Input id="n" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} className="h-12" /></div>
-            <div className="space-y-1.5"><Label>E-mail</Label><Input value={user.email ?? ""} disabled className="h-12" /></div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="p">Celular</Label><Input id="p" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-12" /></div>
-              <div className="space-y-1.5"><Label htmlFor="d">CPF</Label><Input id="d" inputMode="numeric" required value={doc} onChange={(e) => setDoc(e.target.value.replace(/\D/g, "").slice(0, 14))} className="h-12" /></div>
+            <FieldBox id="n" label="Nome completo" error={show("name")}>
+              <Input id="n" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} onBlur={touch("name")} className="h-12" />
+            </FieldBox>
+            <FieldBox id="e" label="E-mail"><Input id="e" value={user.email ?? ""} disabled className="h-12" /></FieldBox>
+            <FieldBox id="p" label="Celular (WhatsApp)" error={show("phone")}>
+              <Input id="p" type="tel" inputMode="tel" autoComplete="tel-national" placeholder="(11) 98765-4321" value={phone}
+                onChange={(e) => setPhone(maskPhone(e.target.value))} onBlur={touch("phone")} className="h-12" />
+            </FieldBox>
+            <div className="space-y-1.5">
+              <Label>Tipo de documento</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["CPF", "CNPJ"] as const).map((t) => (
+                  <button type="button" key={t} onClick={() => { setDocType(t); setDoc(""); }}
+                    className={`h-11 rounded-xl border text-sm ${docType === t ? "border-primary bg-card font-semibold" : "border-border text-muted-foreground"}`}>
+                    {t === "CPF" ? "Pessoa física (CPF)" : "Empresa (CNPJ)"}
+                  </button>
+                ))}
+              </div>
             </div>
+            <FieldBox id="d" label={docType} error={show("doc")}>
+              {docType === "CPF" ? (
+                <Input id="d" inputMode="numeric" placeholder="000.000.000-00" value={doc}
+                  onChange={(e) => setDoc(maskCPF(e.target.value))} onBlur={touch("doc")} className="h-12" />
+              ) : (
+                <Input id="d" inputMode="text" autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="AB.123.CDE/0001-00" value={doc}
+                  onChange={(e) => setDoc(maskCNPJ(e.target.value))} onBlur={touch("doc")} className="h-12 uppercase" />
+              )}
+            </FieldBox>
           </section>
           <section>
             <h2 className="text-lg font-semibold">3. Pagamento</h2>
@@ -123,13 +178,56 @@ function Checkout() {
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {methods.map((m) => (
                 <button type="button" key={m.id} onClick={() => setMethod(m.id)}
-                  className={`rounded-2xl border p-4 text-left ${method === m.id ? "border-primary bg-card" : "border-border"}`}>
+                  className={`rounded-2xl border p-4 text-left ${activeMethod === m.id ? "border-primary bg-card" : "border-border"}`}>
                   <m.icon className="h-5 w-5 text-primary" />
                   <span className="mt-2 block font-medium">{m.label}</span>
                   {m.note && <span className="text-xs text-muted-foreground">{m.note}</span>}
                 </button>
               ))}
             </div>
+            {activeMethod === "card" && (
+              <div className="mt-4 space-y-3 rounded-2xl border border-border bg-card/60 p-4">
+                <FieldBox id="cn" label="Número do cartão" error={show("cardNumber")}>
+                  <Input id="cn" inputMode="numeric" autoComplete="cc-number" placeholder="0000 0000 0000 0000" value={cardNumber}
+                    onChange={(e) => setCardNumber(maskCardNumber(e.target.value))} onBlur={touch("cardNumber")} className="h-12" />
+                </FieldBox>
+                <FieldBox id="ch" label="Nome impresso no cartão" error={show("holder")}>
+                  <Input id="ch" autoComplete="cc-name" autoCapitalize="characters" value={holder}
+                    onChange={(e) => setHolder(e.target.value.toUpperCase().replace(/[^A-ZÀ-Ú ]/g, "").slice(0, 60))} onBlur={touch("holder")} className="h-12 uppercase" />
+                </FieldBox>
+                <div className="grid grid-cols-2 gap-3">
+                  <FieldBox id="cx" label="Validade" error={show("expiry")}>
+                    <Input id="cx" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA" value={expiry}
+                      onChange={(e) => setExpiry(maskExpiry(e.target.value))} onBlur={touch("expiry")} className="h-12" />
+                  </FieldBox>
+                  <FieldBox id="cv" label="CVV" error={show("cvv")}>
+                    <Input id="cv" inputMode="numeric" autoComplete="cc-csc" placeholder="123" value={cvv}
+                      onChange={(e) => setCvv(maskCVV(e.target.value))} onBlur={touch("cvv")} className="h-12" />
+                  </FieldBox>
+                </div>
+                {plan && (
+                  <FieldBox id="ci" label="Parcelas">
+                    <select id="ci" value={installments} onChange={(e) => setInstallments(Number(e.target.value))}
+                      className="h-12 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n}>{n}x de {formatBRL(Number(plan.price) / n)}</option>
+                      ))}
+                    </select>
+                  </FieldBox>
+                )}
+              </div>
+            )}
+          </section>
+          <section>
+            <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-sm">
+              <Checkbox checked={adult} onCheckedChange={(v) => { setAdult(v === true); touch("adult")(); }} className="mt-0.5" />
+              <span>
+                Declaro que tenho <strong>18 anos ou mais</strong> e concordo com os{" "}
+                <Link to="/termos" target="_blank" className="underline">Termos de Uso</Link> e a{" "}
+                <Link to="/privacidade" target="_blank" className="underline">Política de Privacidade</Link>.
+              </span>
+            </label>
+            {show("adult") && <p className="mt-1.5 text-xs text-destructive">{errors.adult}</p>}
           </section>
         </div>
         <aside className="h-fit rounded-3xl border border-border bg-card p-6 lg:sticky lg:top-6">
@@ -155,5 +253,15 @@ function Checkout() {
         </aside>
       </form>
     </main>
+  );
+}
+
+function FieldBox({ id, label, error, children }: { id: string; label: string; error?: string | false; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
   );
 }

@@ -48,9 +48,16 @@ function Landing() {
 
   return (
     <main className="pb-24 md:pb-0">
-      <header className="absolute inset-x-0 top-0 z-10 flex justify-end p-4">
-        <Link to="/account" className="rounded-full bg-background/60 px-4 py-2 text-sm backdrop-blur">
+      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-end gap-2 p-4">
+        <Link to="/account" className="rounded-full bg-background/60 px-4 py-2 text-sm backdrop-blur hover:bg-background/80">
           Minha conta
+        </Link>
+        <Link
+          to="/login"
+          search={{ redirect: undefined, mode: "signup" }}
+          className="cta-pulse rounded-full bg-gradient-gold px-5 py-2 text-sm font-semibold text-primary-foreground shadow-elegant transition-transform hover:scale-105"
+        >
+          Criar conta grátis
         </Link>
       </header>
 
