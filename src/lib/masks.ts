@@ -48,7 +48,7 @@ export function isValidCNPJ(v: string) {
   const dv = (len: number) => {
     const w = len === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
     let sum = 0;
-    for (let i = 0; i < len; i++) sum += val(c[i]) * w[i];
+    for (let i = 0; i < len; i++) sum += val(c[i] ?? "0") * (w[i] ?? 0);
     const r = sum % 11;
     return r < 2 ? 0 : 11 - r;
   };

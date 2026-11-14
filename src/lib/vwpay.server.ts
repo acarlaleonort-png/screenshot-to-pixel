@@ -15,7 +15,7 @@ export interface CreateTransactionInput {
   method: Method;
   description: string;
   payer: { name: string; email: string; phone?: string | null; documentType: "CPF" | "CNPJ"; documentNumber: string };
-  card?: CardInput;
+  card?: CardInput | undefined;
   ip?: string | null;
 }
 
