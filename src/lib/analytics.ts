@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { readChoice } from "./consent";
 
 export type FunnelEvent =
   | "page_view"
@@ -21,6 +22,8 @@ function sessionId() {
 
 export function track(event: FunnelEvent, data: { plan_id?: string; metadata?: Record<string, unknown> } = {}) {
   if (typeof window === "undefined") return;
+  // LGPD: funnel measurement only with consent.
+  if (readChoice("analytics") !== "granted") return;
   void supabase
     .from("analytics_events")
     .insert({ event, session_id: sessionId(), plan_id: data.plan_id ?? null, metadata: (data.metadata ?? null) as never })

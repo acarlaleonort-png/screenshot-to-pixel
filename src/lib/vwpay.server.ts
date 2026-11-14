@@ -1,59 +1,63 @@
 /**
- * VWPayService — the only place that talks to VW Pay. Server-only.
- * Credentials come from secrets: VWPAY_CLIENT_ID, VWPAY_CLIENT_SECRET, VWPAY_BASE_URL, VWPAY_WEBHOOK_SECRET.
- * Endpoint paths and payload fields below must be confirmed against the official VW Pay documentation.
+ * VWPayService — the only place that talks to VW Pay (official API v1). Server-only.
+ * Secrets: VWPAY_CLIENT_ID, VWPAY_CLIENT_SECRET, VWPAY_WEBHOOK_SECRET, optional VWPAY_BASE_URL.
  */
 import type { PaymentStatus } from "./format";
 
 export type Method = "pix" | "card" | "boleto";
+const METHOD_MAP: Record<Method, "PIX" | "CREDIT_CARD" | "INVOICE"> = { pix: "PIX", card: "CREDIT_CARD", boleto: "INVOICE" };
+
+export interface CardInput { number: string; holderName: string; expirationMonth: string; expirationYear: string; cvv: string; installments: number }
 
 export interface CreateTransactionInput {
   orderId: string;
   amount: number;
   method: Method;
   description: string;
-  customer: { name: string; email: string; document?: string | null; phone?: string | null };
-  callbackUrl: string;
+  payer: { name: string; email: string; phone?: string | null; documentType: "CPF" | "CNPJ"; documentNumber: string };
+  card?: CardInput;
+  ip?: string | null;
 }
 
 export interface TransactionResult {
   transactionId: string;
-  status: PaymentStatus;
+  externalId: string | null;
+  status: PaymentStatus | null;
   pixQrCode?: string | null;
   pixCopyPaste?: string | null;
   boletoLine?: string | null;
   boletoUrl?: string | null;
   expiresAt?: string | null;
-  raw: unknown;
+  refusedReason?: string | null;
 }
 
 export class VWPayNotConfiguredError extends Error {
-  constructor() {
-    super("Pagamento indisponível: a integração VW Pay ainda não foi configurada.");
-  }
+  constructor() { super("Pagamento indisponível: a integração VW Pay ainda não foi configurada."); }
+}
+export class VWPayRequestError extends Error {
+  constructor(public status: number, message: string) { super(message); }
 }
 
+const DEFAULT_BASE = "https://app.vwpaypagamentos.com/api/v1";
 function config() {
   const clientId = process.env["VWPAY_CLIENT_ID"];
   const clientSecret = process.env["VWPAY_CLIENT_SECRET"];
-  const baseUrl = process.env["VWPAY_BASE_URL"];
-  if (!clientId || !clientSecret || !baseUrl) throw new VWPayNotConfiguredError();
-  return { clientId, clientSecret, baseUrl: baseUrl.replace(/\/$/, "") };
+  if (!clientId || !clientSecret) throw new VWPayNotConfiguredError();
+  return { clientId, clientSecret, baseUrl: (process.env["VWPAY_BASE_URL"] || DEFAULT_BASE).replace(/\/$/, "") };
 }
+export const isVWPayConfigured = () => !!(process.env["VWPAY_CLIENT_ID"] && process.env["VWPAY_CLIENT_SECRET"]);
 
-export function isVWPayConfigured() {
-  return !!(process.env["VWPAY_CLIENT_ID"] && process.env["VWPAY_CLIENT_SECRET"] && process.env["VWPAY_BASE_URL"]);
-}
-
-/** Maps gateway status strings to the internal standard. */
-export function mapStatus(raw: unknown): PaymentStatus {
-  const s = String(raw ?? "").toLowerCase();
-  if (["paid", "approved", "confirmed", "completed", "succeeded", "captured"].includes(s)) return "APPROVED";
-  if (["declined", "refused", "failed", "denied", "rejected"].includes(s)) return "DECLINED";
-  if (["canceled", "cancelled", "voided"].includes(s)) return "CANCELED";
-  if (["refunded", "chargeback", "chargedback"].includes(s)) return "REFUNDED";
-  if (["expired"].includes(s)) return "EXPIRED";
-  return "PENDING";
+/** Official statuses -> internal. Returns null for statuses that must not change access (IN_PROTEST, PRE_CHARGEBACK, PROCESSING). */
+export function mapStatus(raw: unknown): PaymentStatus | null {
+  switch (String(raw ?? "").toUpperCase()) {
+    case "APPROVED": return "APPROVED";
+    case "REFUSED": return "DECLINED";
+    case "CANCELLED": case "CANCELED": return "CANCELED";
+    case "REFUNDED": case "CHARGEBACK": return "REFUNDED";
+    case "EXPIRED": return "EXPIRED";
+    case "PENDING": return "PENDING";
+    default: return null;
+  }
 }
 
 async function request(path: string, init: RequestInit = {}) {
@@ -68,69 +72,75 @@ async function request(path: string, init: RequestInit = {}) {
     },
   });
   const text = await res.text();
-  let body: unknown = null;
-  try {
-    body = text ? JSON.parse(text) : null;
-  } catch {
-    body = text;
-  }
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
   if (!res.ok) {
-    console.error("[VWPay] request failed", path, res.status);
-    throw new Error(`VW Pay respondeu com erro (${res.status}).`);
+    console.error("[VWPay] request failed", path, res.status, typeof body === "object" ? body?.message : "");
+    const msg = typeof body === "object" && body?.message ? String(body.message) : `VW Pay respondeu com erro (${res.status}).`;
+    throw new VWPayRequestError(res.status, msg);
   }
-  return body as any;
-}
-
-function normalize(body: any): TransactionResult {
-  const d = (body?.data ?? body) as any;
-  return {
-    transactionId: String(d.id ?? d.transaction_id ?? d.transactionId),
-    status: mapStatus(d.status),
-    pixQrCode: d.pix?.qr_code_image ?? d.pix?.qrcode ?? d.qr_code_image ?? null,
-    pixCopyPaste: d.pix?.qr_code ?? d.pix?.copy_paste ?? d.pix_code ?? null,
-    boletoLine: d.boleto?.digitable_line ?? d.boleto?.line ?? null,
-    boletoUrl: d.boleto?.url ?? d.boleto?.pdf ?? null,
-    expiresAt: d.expires_at ?? d.pix?.expires_at ?? d.boleto?.due_date ?? null,
-    raw: { id: d.id, status: d.status },
-  };
+  return body;
 }
 
 export const VWPayService = {
   async createTransaction(input: CreateTransactionInput): Promise<TransactionResult> {
-    const body = await request("/transactions", {
+    const method = METHOD_MAP[input.method];
+    const payload: Record<string, unknown> = {
+      method,
+      amount: Math.round(input.amount * 100),
+      payer: {
+        name: input.payer.name,
+        email: input.payer.email,
+        ...(input.payer.phone ? { phone: input.payer.phone } : {}),
+        document: { type: input.payer.documentType, number: input.payer.documentNumber },
+      },
+      items: [{ title: input.description, quantity: 1, unitPrice: Math.round(input.amount * 100), tangible: false }],
+      metadata: { order_id: input.orderId },
+      ...(input.ip ? { ip: input.ip } : {}),
+    };
+    if (method === "PIX") Object.assign(payload, { expiresIn: 3600, description: input.description });
+    if (method === "INVOICE") Object.assign(payload, { expiresIn: 3, description: input.description });
+    if (method === "CREDIT_CARD" && input.card) {
+      const { installments, ...card } = input.card;
+      Object.assign(payload, { card, installments });
+    }
+    const b = await request("/transactions", {
       method: "POST",
-      body: JSON.stringify({
-        external_id: input.orderId,
-        amount: Math.round(input.amount * 100),
-        payment_method: input.method,
-        description: input.description,
-        postback_url: input.callbackUrl,
-        customer: input.customer,
-      }),
+      headers: { "X-Idempotency-Key": input.orderId },
+      body: JSON.stringify(payload),
     });
-    return normalize(body);
+    return {
+      transactionId: String(b.id),
+      externalId: b.externalId ?? null,
+      // PIX/boleto creation response has no status: they start PENDING. Card returns APPROVED/REFUSED.
+      status: b.status ? mapStatus(b.status) : "PENDING",
+      pixQrCode: b.qrcode?.base64 ?? null,
+      pixCopyPaste: b.qrcode?.code ?? null,
+      boletoLine: b.digitable ?? b.code ?? null,
+      boletoUrl: b.url ?? null,
+      expiresAt: b.expiresAt ?? null,
+    };
   },
 
+  /** Authoritative source of truth (snake_case response). */
   async getTransaction(transactionId: string): Promise<TransactionResult> {
-    return normalize(await request(`/transactions/${encodeURIComponent(transactionId)}`));
+    const b = await request(`/transactions/${encodeURIComponent(transactionId)}`);
+    return {
+      transactionId: String(b.id),
+      externalId: b.external_id ?? null,
+      status: mapStatus(b.status),
+      refusedReason: b.refused_reason ?? null,
+    };
   },
 
-  /** HMAC-SHA256 of the raw body with VWPAY_WEBHOOK_SECRET, hex encoded, constant-time compared. */
+  /** x-webhook-signature = hex HMAC-SHA256(raw body, VWPAY_WEBHOOK_SECRET), constant-time compared. */
   async verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
     const secret = process.env["VWPAY_WEBHOOK_SECRET"];
     if (!secret || !signature) return false;
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-    const expected = Array.from(new Uint8Array(mac))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    const given = signature.replace(/^sha256=/, "").trim().toLowerCase();
+    const expected = Array.from(new Uint8Array(mac)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const given = signature.trim().toLowerCase();
     if (given.length !== expected.length) return false;
     let diff = 0;
     for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);

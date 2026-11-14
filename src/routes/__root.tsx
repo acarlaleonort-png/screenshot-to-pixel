@@ -12,6 +12,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { AgeGate } from "@/components/legal/age-gate";
+import { CookieConsentProvider } from "@/components/legal/cookie-banner";
+import { CONSENT_DEFAULTS_SCRIPT } from "@/lib/consent-defaults";
 import { supabase } from "@/integrations/supabase/client";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -101,6 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Manrope:wght@400;500;600;700&display=swap",
       },
     ],
+    scripts: [{ children: CONSENT_DEFAULTS_SCRIPT }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -137,8 +141,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster />
+      <CookieConsentProvider>
+        <Outlet />
+        <AgeGate />
+        <Toaster />
+      </CookieConsentProvider>
     </QueryClientProvider>
   );
 }

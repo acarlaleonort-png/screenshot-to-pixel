@@ -7,45 +7,36 @@ export const Route = createFileRoute("/api/public/vwpay/webhook")({
         const { VWPayService, mapStatus } = await import("@/lib/vwpay.server");
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+        // HMAC over the raw bytes, before any parse.
         const raw = await request.text();
-        const signature =
-          request.headers.get("x-vwpay-signature") ?? request.headers.get("x-signature") ?? request.headers.get("signature");
-        const valid = await VWPayService.verifyWebhookSignature(raw, signature);
+        const valid = await VWPayService.verifyWebhookSignature(raw, request.headers.get("x-webhook-signature"));
 
         let payload: any;
-        try {
-          payload = JSON.parse(raw);
-        } catch {
-          return new Response("invalid body", { status: 400 });
-        }
-        const d = (payload.data ?? payload) as any;
-        const transactionId = String(d.id ?? d.transaction_id ?? d.transactionId ?? "");
-        const eventType = String(payload.event ?? payload.type ?? "transaction.updated");
-        const eventId = String(payload.event_id ?? payload.id ?? `${transactionId}:${d.status}`);
+        try { payload = JSON.parse(raw); } catch { return new Response("invalid body", { status: 400 }); }
+        const t = payload?.transaction ?? {};
+        const transactionId = typeof t.id === "string" ? t.id.slice(0, 100) : "";
+        const eventType = String(payload?.event ?? "").slice(0, 50);
 
         if (!valid) {
           await supabaseAdmin.from("webhook_events").insert({
-            event_id: `invalid:${crypto.randomUUID()}`,
-            transaction_id: transactionId || null,
-            event_type: eventType,
-            signature_valid: false,
-            error: "invalid signature",
+            event_id: `invalid:${crypto.randomUUID()}`, transaction_id: transactionId || null,
+            event_type: eventType || "unknown", signature_valid: false, error: "invalid signature",
           });
           return new Response("invalid signature", { status: 401 });
         }
+        // Withdraw events and malformed payloads are acknowledged and ignored.
+        if (!transactionId || eventType.startsWith("WITHDRAW")) return Response.json({ ok: true, ignored: true });
 
-        // Idempotency: unique (gateway, event_id).
+        // Idempotency key: transaction id + status (per VW Pay docs).
         const { data: inserted, error } = await supabaseAdmin
           .from("webhook_events")
           .insert({
-            event_id: eventId,
-            transaction_id: transactionId,
-            event_type: eventType,
-            payload: { id: transactionId, status: d.status, event: eventType },
+            event_id: `${transactionId}:${String(t.status ?? eventType)}`,
+            transaction_id: transactionId, event_type: eventType,
+            payload: { id: transactionId, status: t.status, method: t.method, externalId: t.externalId ?? null },
             signature_valid: true,
           })
-          .select()
-          .maybeSingle();
+          .select().maybeSingle();
         if (error?.code === "23505") return Response.json({ ok: true, duplicate: true });
         if (error || !inserted) return new Response("error", { status: 500 });
 
@@ -54,11 +45,19 @@ export const Route = createFileRoute("/api/public/vwpay/webhook")({
           await supabaseAdmin.from("webhook_events").update({ error: "order not found" }).eq("id", inserted.id);
           return Response.json({ ok: true });
         }
-        await supabaseAdmin.rpc("apply_payment_status", { _order_id: order.id, _status: mapStatus(d.status) });
-        await supabaseAdmin
-          .from("webhook_events")
-          .update({ processed: true, processed_at: new Date().toISOString() })
+        // Webhook is a notification only: confirm with GET /transactions/{id} before changing access.
+        let status = null;
+        try { status = (await VWPayService.getTransaction(transactionId)).status; }
+        catch (e) {
+          console.error("[webhook] confirm failed", e);
+          await supabaseAdmin.from("webhook_events").delete().eq("id", inserted.id); // allow retry
+          return new Response("retry", { status: 503 });
+        }
+        if (status && status !== "PENDING") await supabaseAdmin.rpc("apply_payment_status", { _order_id: order.id, _status: status });
+        await supabaseAdmin.from("webhook_events")
+          .update({ processed: true, processed_at: new Date().toISOString(), error: status ? null : `status ignored: ${t.status}` })
           .eq("id", inserted.id);
+        void mapStatus;
         return Response.json({ ok: true });
       },
     },

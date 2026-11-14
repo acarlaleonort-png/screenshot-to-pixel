@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/legal/legal-footer";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import * as Icons from "lucide-react";
@@ -159,6 +160,7 @@ function Landing() {
 
       <footer className="mt-24 border-t border-border py-8 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} {s?.display_name}
+        <LegalLinks />
       </footer>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/90 p-3 backdrop-blur md:hidden">

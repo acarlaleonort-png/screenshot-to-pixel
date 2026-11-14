@@ -2,13 +2,29 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { cleanCNPJ, isValidCNPJ, isValidCPF, isValidExpiry, isValidLuhn, isValidPhone, onlyDigits } from "./masks";
 
 const checkoutSchema = z.object({
   planId: z.string().uuid(),
   name: z.string().trim().min(2).max(120),
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
-  document: z.string().trim().max(20).optional().or(z.literal("")),
+  phone: z.string().trim().refine(isValidPhone, "Telefone inválido"),
+  documentType: z.enum(["CPF", "CNPJ"]),
+  document: z.string().trim().max(20),
   method: z.enum(["pix", "card", "boleto"]),
+  adult: z.literal(true),
+  card: z
+    .object({
+      number: z.string().refine(isValidLuhn, "Cartão inválido"),
+      holderName: z.string().trim().min(3).max(100),
+      expiry: z.string().refine((v) => isValidExpiry(v), "Validade inválida"),
+      cvv: z.string().regex(/^\d{3,4}$/),
+      installments: z.number().int().min(1).max(12),
+    })
+    .optional(),
+}).superRefine((d, ctx) => {
+  const ok = d.documentType === "CPF" ? isValidCPF(d.document) : isValidCNPJ(d.document);
+  if (!ok) ctx.addIssue({ code: "custom", path: ["document"], message: "Documento inválido" });
+  if (d.method === "card" && !d.card) ctx.addIssue({ code: "custom", path: ["card"], message: "Dados do cartão obrigatórios" });
 });
 
 export const createCheckout = createServerFn({ method: "POST" })
@@ -16,7 +32,9 @@ export const createCheckout = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => checkoutSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { VWPayService, VWPayNotConfiguredError } = await import("./vwpay.server");
+    const { VWPayService, VWPayNotConfiguredError, VWPayRequestError } = await import("./vwpay.server");
+    const docNumber = data.documentType === "CPF" ? onlyDigits(data.document) : cleanCNPJ(data.document);
+    const phone = onlyDigits(data.phone);
     const email = (context.claims as { email?: string }).email ?? "";
 
     // Price always comes from the database, never from the browser.
@@ -30,7 +48,7 @@ export const createCheckout = createServerFn({ method: "POST" })
     const { data: customer, error: cErr } = await supabaseAdmin
       .from("customers")
       .upsert(
-        { user_id: context.userId, name: data.name, email, phone: data.phone || null, document: data.document || null },
+        { user_id: context.userId, name: data.name, email, phone, document: docNumber },
         { onConflict: "user_id" },
       )
       .select()
@@ -45,16 +63,28 @@ export const createCheckout = createServerFn({ method: "POST" })
     if (oErr || !order) return { ok: false as const, error: "Não foi possível criar o pedido." };
 
     try {
-      const origin = new URL(getRequest().url).origin;
+      const req = getRequest();
+      const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+      const card = data.card
+        ? {
+            number: onlyDigits(data.card.number),
+            holderName: data.card.holderName.toUpperCase(),
+            expirationMonth: onlyDigits(data.card.expiry).slice(0, 2),
+            expirationYear: `20${onlyDigits(data.card.expiry).slice(2, 4)}`,
+            cvv: data.card.cvv,
+            installments: data.card.installments,
+          }
+        : undefined;
       const tx = await VWPayService.createTransaction({
         orderId: order.id,
         amount: Number(plan.price),
         method: data.method,
         description: plan.name,
-        customer: { name: data.name, email, document: data.document || null, phone: data.phone || null },
-        callbackUrl: `${origin}/api/public/vwpay/webhook`,
+        payer: { name: data.name, email, phone, documentType: data.documentType, documentNumber: docNumber },
+        card,
+        ip,
       });
-      await supabaseAdmin.from("orders").update({ transaction_id: tx.transactionId, external_id: order.id }).eq("id", order.id);
+      await supabaseAdmin.from("orders").update({ transaction_id: tx.transactionId, external_id: tx.externalId }).eq("id", order.id);
       await supabaseAdmin.from("payments").insert({
         order_id: order.id,
         method: data.method,
@@ -65,14 +95,23 @@ export const createCheckout = createServerFn({ method: "POST" })
         boleto_line: tx.boletoLine ?? null,
         boleto_url: tx.boletoUrl ?? null,
         expires_at: tx.expiresAt ?? null,
-        raw_reference_data: tx.raw as never,
+        raw_reference_data: { id: tx.transactionId, externalId: tx.externalId } as never,
       });
-      // Only DECLINED is applied from the synchronous response; approval waits for backend confirmation.
-      if (tx.status === "DECLINED") await supabaseAdmin.rpc("apply_payment_status", { _order_id: order.id, _status: "DECLINED" });
+      // Card returns a synchronous outcome; confirm it with the authoritative GET before applying.
+      if (data.method === "card" && tx.status && tx.status !== "PENDING") {
+        const confirmed = await VWPayService.getTransaction(tx.transactionId).catch(() => null);
+        const st = confirmed?.status ?? (tx.status === "DECLINED" ? "DECLINED" : null);
+        if (st && st !== "PENDING") await supabaseAdmin.rpc("apply_payment_status", { _order_id: order.id, _status: st });
+      }
       return { ok: true as const, orderId: order.id };
     } catch (e) {
       await supabaseAdmin.from("orders").update({ status: "CANCELED" }).eq("id", order.id);
-      const msg = e instanceof VWPayNotConfiguredError ? e.message : "Não foi possível iniciar o pagamento. Tente novamente.";
+      const msg =
+        e instanceof VWPayNotConfiguredError
+          ? e.message
+          : e instanceof VWPayRequestError && e.status === 400
+            ? `Dados recusados pela operadora: ${e.message}`
+            : "Não foi possível iniciar o pagamento. Tente novamente.";
       console.error("[checkout]", e);
       return { ok: false as const, error: msg };
     }
@@ -96,7 +135,7 @@ export const getOrderStatus = createServerFn({ method: "GET" })
         const { VWPayService, isVWPayConfigured } = await import("./vwpay.server");
         if (isVWPayConfigured()) {
           const tx = await VWPayService.getTransaction(order.transaction_id);
-          if (tx.status !== "PENDING") {
+          if (tx.status && tx.status !== "PENDING") {
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
             await supabaseAdmin.rpc("apply_payment_status", { _order_id: order.id, _status: tx.status });
             return { ...order, status: tx.status };
