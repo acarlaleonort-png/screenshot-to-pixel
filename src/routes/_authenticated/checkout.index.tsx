@@ -256,7 +256,7 @@ function Checkout() {
   );
 }
 
-function FieldBox({ id, label, error, children }: { id: string; label: string; error?: string | false; children: React.ReactNode }) {
+function FieldBox({ id, label, error, children }: { id: string; label: string; error?: string | false | undefined; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
