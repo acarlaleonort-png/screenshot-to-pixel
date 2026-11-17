@@ -168,7 +168,7 @@ function Checkout() {
                   onChange={(e) => setDoc(maskCPF(e.target.value))} onBlur={touch("doc")} className="h-12" />
               ) : (
                 <Input id="d" inputMode="text" autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="AB.123.CDE/0001-00" value={doc}
-                  onChange={(e) => setDoc(maskCNPJ(e.target.value))} onBlur={touch("doc")} className="h-12 uppercase" />
+                  onChange={(e) => setDoc(maskCNPJ(e.target.value) ?? "")} onBlur={touch("doc")} className="h-12 uppercase" />
               )}
             </FieldBox>
           </section>
