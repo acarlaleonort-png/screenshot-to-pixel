@@ -12,6 +12,8 @@ const checkoutSchema = z.object({
   document: z.string().trim().max(20),
   method: z.enum(["pix", "card", "boleto"]),
   adult: z.literal(true),
+  terms: z.literal(true),
+  privacy: z.literal(true),
   card: z
     .object({
       number: z.string().refine(isValidLuhn, "Cartão inválido"),
@@ -25,6 +27,7 @@ const checkoutSchema = z.object({
   const ok = d.documentType === "CPF" ? isValidCPF(d.document) : isValidCNPJ(d.document);
   if (!ok) ctx.addIssue({ code: "custom", path: ["document"], message: "Documento inválido" });
   if (d.method === "card" && !d.card) ctx.addIssue({ code: "custom", path: ["card"], message: "Dados do cartão obrigatórios" });
+  if (d.method !== "card" && d.card) ctx.addIssue({ code: "custom", path: ["card"], message: "Cartão só é aceito no método cartão" });
 });
 
 export const createCheckout = createServerFn({ method: "POST" })
@@ -112,7 +115,7 @@ export const createCheckout = createServerFn({ method: "POST" })
           : e instanceof VWPayRequestError && e.status === 400
             ? `Dados recusados pela operadora: ${e.message}`
             : "Não foi possível iniciar o pagamento. Tente novamente.";
-      console.error("[checkout]", e);
+      console.error("[checkout]", e instanceof Error ? e.name + ": " + e.message : "unknown error");
       return { ok: false as const, error: msg };
     }
   });

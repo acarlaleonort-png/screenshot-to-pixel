@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, CreditCard, FileText, QrCode, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,9 @@ function Checkout() {
   const [cvv, setCvv] = useState("");
   const [installments, setInstallments] = useState(1);
   const [adult, setAdult] = useState(false);
+  const [terms, setTerms] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
+  const sending = useRef(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const touch = (k: string) => () => setTouched((t) => ({ ...t, [k]: true }));
   const [busy, setBusy] = useState(false);
@@ -81,29 +84,33 @@ function Checkout() {
   const activeMethod = methods.some((m) => m.id === method) ? method : methods[0]?.id ?? method;
   const errors = {
     name: name.trim().length < 2 ? "Informe seu nome completo" : "",
-    phone: !isValidPhone(phone) ? "Celular inválido. Ex.: (11) 98765-4321" : "",
+    phone: !isValidPhone(phone) ? "Telefone inválido. Ex.: (11) 98765-4321 ou (11) 3456-7890" : "",
     doc: !(docType === "CPF" ? isValidCPF(doc) : isValidCNPJ(doc)) ? `${docType} inválido` : "",
     cardNumber: activeMethod === "card" && !isValidLuhn(cardNumber) ? "Número do cartão inválido" : "",
     holder: activeMethod === "card" && holder.trim().length < 3 ? "Nome como está no cartão" : "",
     expiry: activeMethod === "card" && !isValidExpiry(expiry) ? "Validade inválida" : "",
     cvv: activeMethod === "card" && !/^\d{3,4}$/.test(cvv) ? "CVV inválido" : "",
+    installments: activeMethod === "card" && !(Number.isInteger(installments) && installments >= 1 && installments <= 12) ? "Parcelas inválidas" : "",
     adult: !adult ? "Confirme que você é maior de 18 anos" : "",
+    terms: !terms ? "Aceite os Termos de Uso" : "",
+    privacy: !privacy ? "Aceite a Política de Privacidade" : "",
   };
   const show = (k: keyof typeof errors) => (touched[k] || touched["all"]) && errors[k];
 
   const pay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plan) return;
+    if (!plan || sending.current) return;
     if (Object.values(errors).some(Boolean)) {
       setTouched({ all: true });
       toast.error("Confira os campos destacados.");
       return;
     }
+    sending.current = true;
     setBusy(true);
     try {
       const res = await createCheckout({
         data: {
-          planId: plan.id, name, phone, document: doc, documentType: docType, method: activeMethod, adult: true,
+          planId: plan.id, name, phone, document: doc, documentType: docType, method: activeMethod, adult: true, terms: true, privacy: true,
           card: activeMethod === "card" ? { number: cardNumber, holderName: holder, expiry, cvv, installments } : undefined,
         },
       });
@@ -116,6 +123,7 @@ function Checkout() {
     } catch {
       toast.error("Verifique seus dados e tente novamente.");
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
@@ -147,7 +155,7 @@ function Checkout() {
               <Input id="n" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} onBlur={touch("name")} className="h-12" />
             </FieldBox>
             <FieldBox id="e" label="E-mail"><Input id="e" value={user.email ?? ""} disabled className="h-12" /></FieldBox>
-            <FieldBox id="p" label="Celular (WhatsApp)" error={show("phone")}>
+            <FieldBox id="p" label="Telefone com DDD (celular ou fixo)" error={show("phone")}>
               <Input id="p" type="tel" inputMode="tel" autoComplete="tel-national" placeholder="(11) 98765-4321" value={phone}
                 onChange={(e) => setPhone(maskPhone(e.target.value))} onBlur={touch("phone")} className="h-12" />
             </FieldBox>
@@ -206,7 +214,7 @@ function Checkout() {
                   </FieldBox>
                 </div>
                 {plan && (
-                  <FieldBox id="ci" label="Parcelas">
+                  <FieldBox id="ci" label="Parcelas" error={show("installments")}>
                     <select id="ci" value={installments} onChange={(e) => setInstallments(Number(e.target.value))}
                       className="h-12 w-full rounded-md border border-input bg-background px-3 text-sm">
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -218,16 +226,20 @@ function Checkout() {
               </div>
             )}
           </section>
-          <section>
-            <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-sm">
-              <Checkbox checked={adult} onCheckedChange={(v) => { setAdult(v === true); touch("adult")(); }} className="mt-0.5" />
-              <span>
-                Declaro que tenho <strong>18 anos ou mais</strong> e concordo com os{" "}
-                <Link to="/termos" target="_blank" className="underline">Termos de Uso</Link> e a{" "}
-                <Link to="/privacidade" target="_blank" className="underline">Política de Privacidade</Link>.
-              </span>
-            </label>
-            {show("adult") && <p className="mt-1.5 text-xs text-destructive">{errors.adult}</p>}
+          <section className="space-y-2">
+            {([
+              ["adult", adult, setAdult, <>Declaro que tenho <strong>18 anos ou mais</strong>.</>],
+              ["terms", terms, setTerms, <>Li e aceito os <Link to="/termos" target="_blank" rel="noopener" className="underline">Termos de Uso</Link>.</>],
+              ["privacy", privacy, setPrivacy, <>Li e aceito a <Link to="/privacidade" target="_blank" rel="noopener" className="underline">Política de Privacidade</Link>.</>],
+            ] as const).map(([k, val, set, text]) => (
+              <div key={k}>
+                <label className="flex items-start gap-3 rounded-2xl border border-border p-4 text-sm">
+                  <Checkbox aria-label={k} checked={val} onCheckedChange={(v) => { set(v === true); touch(k)(); }} className="mt-0.5" />
+                  <span>{text}</span>
+                </label>
+                {show(k) && <p className="mt-1.5 text-xs text-destructive">{errors[k]}</p>}
+              </div>
+            ))}
           </section>
         </div>
         <aside className="h-fit rounded-3xl border border-border bg-card p-6 lg:sticky lg:top-6">
@@ -246,7 +258,7 @@ function Checkout() {
               </div>
             </>
           ) : <p className="mt-3 text-sm text-muted-foreground">Selecione um plano.</p>}
-          <Button type="submit" disabled={busy || !plan || !methods.length} className="mt-6 h-14 w-full rounded-2xl bg-gradient-gold text-base font-semibold">
+          <Button type="submit" disabled={busy || !plan || !methods.length || !adult || !terms || !privacy} className="mt-6 h-14 w-full rounded-2xl bg-gradient-gold text-base font-semibold">
             {busy ? "Processando..." : "Ir para pagamento"}
           </Button>
           <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4 text-success" /> Seus dados de pagamento não ficam armazenados aqui.</p>
