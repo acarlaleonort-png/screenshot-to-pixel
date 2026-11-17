@@ -7,7 +7,7 @@ function fake(orders: { id: string; transaction_id: string | null }[], valid = t
   const d: WebhookDeps = {
     verify: async () => valid,
     insertEvent: async (row) => {
-      if (events.some((e) => e.event_id === row.event_id)) return { duplicate: true };
+      if (events.some((e) => e.event_id === row["event_id"])) return { duplicate: true };
       const e = { id: String(events.length + 1), ...row }; events.push(e); return { id: e.id };
     },
     updateEvent: async (id, p) => { Object.assign(events.find((e) => e.id === id), p); },
