@@ -44,7 +44,7 @@ function Checkout() {
     queryFn: async () => {
       const [plans, settings, profile] = await Promise.all([
         supabase.from("plans").select("*").eq("active", true).order("sort_order"),
-        supabase.from("site_settings").select("methods_enabled").eq("id", 1).single(),
+        supabase.from("site_settings").select("methods_enabled").eq("id", 1).maybeSingle(),
         supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle(),
       ]);
       return { plans: plans.data ?? [], methods: (settings.data?.methods_enabled ?? {}) as Record<string, boolean>, profile: profile.data };
@@ -80,7 +80,7 @@ function Checkout() {
 
   if (isLoading) return <div className="p-10 text-center text-muted-foreground">Carregando...</div>;
   const plan = data?.plans.find((p) => p.id === selected);
-  const methods = METHODS.filter((m) => data?.methods[m.id]);
+  const methods = METHODS.filter((m) => data?.methods?.[m.id] !== false);
   const activeMethod = methods.some((m) => m.id === method) ? method : methods[0]?.id ?? method;
   const errors = {
     name: name.trim().length < 2 ? "Informe seu nome completo" : "",
