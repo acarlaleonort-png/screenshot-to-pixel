@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Media files live in Storage (`public-media` for avatar/cover/previews, `protected-content` for subscriber files); the `media` table holds only metadata/paths, and UI prefers `*_media_id` over legacy `*_url` columns — avoids base64/external URLs while keeping old rows working.
+- Subscriber content access is per plan via `content_plans` + `can_access_content()` in RLS; content without any plan is visible to admins only — the plan must come from the DB subscription, never the client.
