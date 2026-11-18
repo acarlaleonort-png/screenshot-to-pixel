@@ -594,6 +594,105 @@ export type Database = {
           },
         ]
       }
+      social_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          highlighted: boolean
+          icon: string
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          highlighted?: boolean
+          icon?: string
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          highlighted?: boolean
+          icon?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      social_proof_counters: {
+        Row: {
+          active: boolean
+          counter_key: string
+          created_at: string
+          display_base: number
+          id: string
+          label: string
+          show_plus: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          counter_key: string
+          created_at?: string
+          display_base?: number
+          id?: string
+          label: string
+          show_plus?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          counter_key?: string
+          created_at?: string
+          display_base?: number
+          id?: string
+          label?: string
+          show_plus?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_proof_events: {
+        Row: {
+          counter_key: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          counter_key: string
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          counter_key?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -729,6 +828,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      social_proof_real_counts: {
+        Args: never
+        Returns: {
+          counter_key: string
+          real_count: number
+        }[]
       }
     }
     Enums: {

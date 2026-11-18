@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { PlanCards, type Plan } from "@/components/plan-cards";
 import { getLandingData } from "@/lib/public.functions";
 import { track } from "@/lib/analytics";
+import { formatCounter } from "@/lib/social-proof";
 
 export const Route = createFileRoute("/")({
   loader: () => getLandingData(),
@@ -41,7 +42,7 @@ function Cta({ label, className = "" }: { label: string; className?: string }) {
 }
 
 function Landing() {
-  const { settings: s, benefits, faqs, plans, previews } = Route.useLoaderData();
+  const { settings: s, benefits, faqs, plans, previews, links, counters } = Route.useLoaderData();
   useEffect(() => track("page_view"), []);
   const cta = s?.cta_label ?? "Escolher meu acesso";
   const socials = Array.isArray(s?.social_links) ? (s!.social_links as { label: string; url: string }[]) : [];
@@ -81,7 +82,26 @@ function Landing() {
               <ShieldCheck className="h-4 w-4 text-success" /> Pagamento seguro · Acesso liberado após confirmação
             </span>
           </div>
-          {socials.length > 0 && (
+          {counters.length > 0 && (
+            <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              {counters.map((c) => (
+                <li key={c.key}><span className="font-display text-lg text-foreground">{formatCounter(c.value, c.show_plus)}</span> {c.label}</li>
+              ))}
+            </ul>
+          )}
+          {links.length > 0 ? (
+            <div className="mx-auto mt-6 flex max-w-md flex-col gap-2">
+              {links.map((l) => (
+                <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
+                  className={l.highlighted
+                    ? "rounded-2xl bg-gradient-gold px-5 py-3 font-semibold text-primary-foreground shadow-elegant transition-transform hover:scale-[1.02]"
+                    : "rounded-2xl border border-border bg-card/60 px-5 py-3 text-foreground transition-colors hover:bg-card"}>
+                  <span className="block">{l.title}</span>
+                  {l.description && <span className="block text-xs opacity-80">{l.description}</span>}
+                </a>
+              ))}
+            </div>
+          ) : socials.length > 0 && (
             <div className="mt-6 flex flex-wrap justify-center gap-3 text-sm">
               {socials.map((l) => (
                 <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="text-muted-foreground underline-offset-4 hover:underline">

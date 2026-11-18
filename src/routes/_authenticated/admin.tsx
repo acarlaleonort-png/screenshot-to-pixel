@@ -17,6 +17,7 @@ const NAV = [
   { to: "/admin/customers", label: "Clientes" },
   { to: "/admin/orders", label: "Pedidos" },
   { to: "/admin/payments", label: "Pagamentos" },
+  { to: "/admin/social", label: "Links e Prova Social" },
   { to: "/admin/settings", label: "Configurações" },
 ] as const;
 
