@@ -77,10 +77,12 @@ export type Database = {
           description: string
           id: string
           is_preview: boolean
+          media_id: string | null
           media_type: string
           media_url: string | null
           published: boolean
           sort_order: number
+          thumbnail_media_id: string | null
           thumbnail_url: string | null
           title: string
           updated_at: string
@@ -90,10 +92,12 @@ export type Database = {
           description?: string
           id?: string
           is_preview?: boolean
+          media_id?: string | null
           media_type?: string
           media_url?: string | null
           published?: boolean
           sort_order?: number
+          thumbnail_media_id?: string | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string
@@ -103,15 +107,65 @@ export type Database = {
           description?: string
           id?: string
           is_preview?: boolean
+          media_id?: string | null
           media_type?: string
           media_url?: string | null
           published?: boolean
           sort_order?: number
+          thumbnail_media_id?: string | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_thumbnail_media_id_fkey"
+            columns: ["thumbnail_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_plans: {
+        Row: {
+          content_id: string
+          created_at: string
+          plan_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          plan_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_plans_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_plans_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_previews: {
         Row: {
@@ -121,6 +175,7 @@ export type Database = {
           id: string
           locked: boolean
           sort_order: number
+          thumbnail_media_id: string | null
           thumbnail_url: string | null
           title: string
         }
@@ -131,6 +186,7 @@ export type Database = {
           id?: string
           locked?: boolean
           sort_order?: number
+          thumbnail_media_id?: string | null
           thumbnail_url?: string | null
           title?: string
         }
@@ -141,10 +197,19 @@ export type Database = {
           id?: string
           locked?: boolean
           sort_order?: number
+          thumbnail_media_id?: string | null
           thumbnail_url?: string | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_previews_thumbnail_media_id_fkey"
+            columns: ["thumbnail_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -203,6 +268,54 @@ export type Database = {
           id?: string
           question?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      media: {
+        Row: {
+          alt_text: string | null
+          bucket: string
+          created_at: string
+          duration: number | null
+          file_name: string
+          height: number | null
+          id: string
+          media_type: string
+          mime_type: string
+          size: number | null
+          storage_path: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          bucket: string
+          created_at?: string
+          duration?: number | null
+          file_name?: string
+          height?: number | null
+          id?: string
+          media_type?: string
+          mime_type?: string
+          size?: number | null
+          storage_path: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          bucket?: string
+          created_at?: string
+          duration?: number | null
+          file_name?: string
+          height?: number | null
+          id?: string
+          media_type?: string
+          mime_type?: string
+          size?: number | null
+          storage_path?: string
+          updated_at?: string
+          width?: number | null
         }
         Relationships: []
       }
@@ -409,8 +522,10 @@ export type Database = {
       site_settings: {
         Row: {
           accent_color: string | null
+          avatar_media_id: string | null
           avatar_url: string | null
           bio: string
+          cover_media_id: string | null
           cover_url: string | null
           cta_label: string
           display_name: string
@@ -426,8 +541,10 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          avatar_media_id?: string | null
           avatar_url?: string | null
           bio?: string
+          cover_media_id?: string | null
           cover_url?: string | null
           cta_label?: string
           display_name?: string
@@ -443,8 +560,10 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          avatar_media_id?: string | null
           avatar_url?: string | null
           bio?: string
+          cover_media_id?: string | null
           cover_url?: string | null
           cta_label?: string
           display_name?: string
@@ -458,7 +577,22 @@ export type Database = {
           subheadline?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "site_settings_avatar_media_id_fkey"
+            columns: ["avatar_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_settings_cover_media_id_fkey"
+            columns: ["cover_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
@@ -579,6 +713,14 @@ export type Database = {
           _status: Database["public"]["Enums"]["payment_status"]
         }
         Returns: undefined
+      }
+      can_access_content: {
+        Args: { _content_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_read_protected_object: {
+        Args: { _path: string; _user_id: string }
+        Returns: boolean
       }
       has_active_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
