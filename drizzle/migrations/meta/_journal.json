@@ -1,20 +1,5 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1794874240237,
-      "tag": "0000_customers_user_id_not_null_and_plan_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1795013666187,
-      "tag": "0001_media_storage_and_content_plans",
-      "breakpoints": true
-    }
-  ]
+  "entries": []
 }
