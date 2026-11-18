@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { cleanCNPJ, isValidCNPJ, isValidCPF, isValidExpiry, isValidLuhn, isValidPhone, onlyDigits } from "./masks";
+import { isMethodEnabled } from "./payment-methods";
 
 const checkoutSchema = z.object({
   planId: z.string().uuid(),
@@ -44,9 +45,8 @@ export const createCheckout = createServerFn({ method: "POST" })
     const { data: plan } = await supabaseAdmin.from("plans").select("*").eq("id", data.planId).eq("active", true).maybeSingle();
     if (!plan) return { ok: false as const, error: "Plano indisponível." };
 
-    const { data: settings } = await supabaseAdmin.from("site_settings").select("methods_enabled").eq("id", 1).single();
-    const enabled = (settings?.methods_enabled ?? {}) as Record<string, boolean>;
-    if (!enabled[data.method]) return { ok: false as const, error: "Forma de pagamento indisponível." };
+    const { data: settings } = await supabaseAdmin.from("site_settings").select("methods_enabled").eq("id", 1).maybeSingle();
+    if (!isMethodEnabled(settings?.methods_enabled, data.method)) return { ok: false as const, error: "Forma de pagamento indisponível." };
 
     const { data: customer, error: cErr } = await supabaseAdmin
       .from("customers")
