@@ -41,10 +41,39 @@ function Cta({ label, className = "" }: { label: string; className?: string }) {
   );
 }
 
+function PathCard({ emoji, title, desc, cta, url, path, tone }: { emoji: string; title: string; desc: string; cta: string; url?: string | undefined; path: string; tone: "mid" | "low" }) {
+  const box = tone === "mid"
+    ? "rounded-3xl border border-primary/40 bg-card/80 p-5"
+    : "rounded-2xl border border-border bg-card/40 p-4";
+  const btn = tone === "mid"
+    ? "border border-primary text-primary"
+    : "bg-secondary text-secondary-foreground";
+  const body = (
+    <>
+      <span className={`block font-display ${tone === "mid" ? "text-xl" : "text-lg"}`}>{emoji} {title}</span>
+      <span className="mt-1 block text-sm text-muted-foreground">{desc}</span>
+      <span className={`mt-3 flex h-12 items-center justify-center rounded-2xl text-sm font-semibold ${btn}`}>{url ? cta : "Em breve"}</span>
+    </>
+  );
+  if (!url) return <div className={`${box} opacity-70`} aria-disabled="true">{body}</div>;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`${title}: ${cta.replace(" →", "")}`}
+      onClick={() => track("click_cta", { metadata: { path } })}
+      className={`group block transition-all hover:-translate-y-0.5 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] ${box}`}>
+      {body}
+    </a>
+  );
+}
+
 function Landing() {
   const { settings: s, benefits, faqs, plans, previews, links, counters } = Route.useLoaderData();
   useEffect(() => track("page_view"), []);
   const cta = s?.cta_label ?? "Escolher meu acesso";
+  const isKind = (l: { icon: string | null; title: string }, k: string) => l.icon === k || new RegExp(`\\b${k}\\b`, "i").test(l.title);
+  const vip = links.find((l) => isKind(l, "vip"));
+  const free = links.find((l) => isKind(l, "free"));
+  const otherLinks = links.filter((l) => l !== vip && l !== free);
+  const exclusiveDesc = s?.subheadline || (plans.length ? `${plans.length} ${plans.length > 1 ? "planos disponíveis" : "plano disponível"} para acessar a área privada.` : "Acesso à área privada para assinantes.");
   const socials = Array.isArray(s?.social_links) ? (s!.social_links as { label: string; url: string }[]) : [];
 
   return (
@@ -76,64 +105,37 @@ function Landing() {
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">{s?.bio}</p>
           <h2 className="mx-auto mt-8 max-w-2xl text-3xl leading-tight md:text-5xl">{s?.headline}</h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">{s?.subheadline}</p>
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <Cta label={cta} />
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-success" /> Pagamento seguro · Acesso liberado após confirmação
-            </span>
+        </div>
+        <div className="relative mx-auto mt-10 max-w-xl px-5">
+          <h2 className="text-center text-2xl md:text-3xl">O que você quer acessar?</h2>
+          <p className="mt-1 text-center text-sm text-muted-foreground">Escolha uma opção para continuar.</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <a href="#planos" onClick={() => track("click_cta", { metadata: { path: "exclusive" } })}
+              aria-label="Conteúdo Exclusivo: quero ter acesso"
+              className="group block rounded-3xl border-2 border-primary bg-card p-6 shadow-elegant transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]">
+              <span className="block font-display text-2xl">🔥 Conteúdo Exclusivo</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{exclusiveDesc}</span>
+              <span className="mt-4 flex h-12 items-center justify-center rounded-2xl bg-gradient-gold font-semibold text-primary-foreground">QUERO TER ACESSO →</span>
+            </a>
+            <PathCard emoji="💎" title="Grupo VIP" desc="Entre para a área exclusiva." cta="CONHECER O VIP →" url={vip?.url} path="vip" tone="mid" />
+            <PathCard emoji="🆓" title="Grupo Free" desc="Comece gratuitamente." cta="ENTRAR GRÁTIS →" url={free?.url} path="free" tone="low" />
           </div>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-success" /> Pagamento seguro · Acesso liberado após confirmação
+          </p>
           {counters.length > 0 && (
-            <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {counters.map((c) => (
-                <li key={c.key}><span className="font-display text-lg text-foreground">{formatCounter(c.value, c.show_plus)}</span> {c.label}</li>
+                <li key={c.key}><span className="font-semibold text-foreground">{formatCounter(c.value, c.show_plus)}</span> {c.label}</li>
               ))}
             </ul>
-          )}
-          {links.length > 0 ? (
-            <div className="mx-auto mt-6 flex max-w-md flex-col gap-2">
-              {links.map((l) => (
-                <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer"
-                  className={l.highlighted
-                    ? "rounded-2xl bg-gradient-gold px-5 py-3 font-semibold text-primary-foreground shadow-elegant transition-transform hover:scale-[1.02]"
-                    : "rounded-2xl border border-border bg-card/60 px-5 py-3 text-foreground transition-colors hover:bg-card"}>
-                  <span className="block">{l.title}</span>
-                  {l.description && <span className="block text-xs opacity-80">{l.description}</span>}
-                </a>
-              ))}
-            </div>
-          ) : socials.length > 0 && (
-            <div className="mt-6 flex flex-wrap justify-center gap-3 text-sm">
-              {socials.map((l) => (
-                <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="text-muted-foreground underline-offset-4 hover:underline">
-                  {l.label}
-                </a>
-              ))}
-            </div>
           )}
         </div>
       </section>
 
-      {benefits.length > 0 && (
-        <section className="mx-auto mt-24 max-w-5xl px-5">
-          <h2 className="text-center text-3xl md:text-4xl">O que você recebe</h2>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {benefits.map((b) => {
-              const Icon = ((Icons as unknown as Record<string, Icons.LucideIcon>)[b.icon] ?? Icons.Sparkles) as Icons.LucideIcon;
-              return (
-                <div key={b.id} className="rounded-2xl border border-border bg-card/60 p-6">
-                  <Icon className="h-6 w-6 text-primary" />
-                  <h3 className="mt-4 text-xl">{b.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{b.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {previews.length > 0 && (
         <section className="mx-auto mt-24 max-w-5xl px-5">
-          <h2 className="text-center text-3xl md:text-4xl">Prévias</h2>
+          <h2 className="text-center text-3xl md:text-4xl">Um pouco do que você pode encontrar por aqui</h2>
           <div className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3">
             {previews.map((p) => (
               <figure key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-muted">
@@ -151,6 +153,24 @@ function Landing() {
           </div>
           <div className="mt-8 text-center">
             <Cta label={cta} />
+          </div>
+        </section>
+      )}
+
+      {benefits.length > 0 && (
+        <section className="mx-auto mt-24 max-w-5xl px-5">
+          <h2 className="text-center text-3xl md:text-4xl">O que você recebe</h2>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefits.map((b) => {
+              const Icon = ((Icons as unknown as Record<string, Icons.LucideIcon>)[b.icon] ?? Icons.Sparkles) as Icons.LucideIcon;
+              return (
+                <div key={b.id} className="rounded-2xl border border-border bg-card/60 p-6">
+                  <Icon className="h-6 w-6 text-primary" />
+                  <h3 className="mt-4 text-xl">{b.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{b.description}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -183,6 +203,27 @@ function Landing() {
             <Cta label={cta} />
           </div>
         </section>
+      )}
+
+      {otherLinks.length > 0 ? (
+        <section className="mx-auto mt-20 max-w-md px-5">
+          <h2 className="text-center text-xl">Também estou por aqui</h2>
+          <div className="mt-5 flex flex-col gap-2">
+            {otherLinks.map((l) => (
+              <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" onClick={() => track("click_cta", { metadata: { path: "link", icon: l.icon } })}
+                className={`rounded-2xl border px-5 py-3 text-center transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${l.highlighted ? "border-primary bg-card" : "border-border bg-card/50 hover:bg-card"}`}>
+                <span className="block text-sm font-medium">{l.title}</span>
+                {l.description && <span className="block text-xs text-muted-foreground">{l.description}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : links.length === 0 && socials.length > 0 && (
+        <div className="mt-16 flex flex-wrap justify-center gap-3 text-sm">
+          {socials.map((l) => (
+            <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="text-muted-foreground underline-offset-4 hover:underline">{l.label}</a>
+          ))}
+        </div>
       )}
 
       <footer className="mt-24 border-t border-border py-8 text-center text-xs text-muted-foreground">
